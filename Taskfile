@@ -1,0 +1,121 @@
+#!/bin/bash
+set -eo pipefail
+
+function docker:exec {
+  docker compose exec --user php app sh -c "$1"
+}
+
+# ===========================
+# Laravel
+# ===========================
+
+function task:artisan { ## Run any artisan command
+  docker:exec "php artisan ${@}"
+}
+
+# ===========================
+# Testing
+# ===========================
+
+function task:tests { ## Run all tests
+  docker:exec "./vendor/bin/phpunit"
+}
+
+NETWORK=pokedex
+
+
+# ===========================
+# Proxy
+# ===========================
+
+function proxy:start {
+  curl --silent https://gitlab.enrise.com/Enrise/DevProxy/-/raw/master/start.sh | sh
+}
+
+function proxy:connect {
+  docker network connect $NETWORK enrise-dev-proxy || true
+}
+
+function proxy:stop {
+  docker container stop enrise-dev-proxy || true
+}
+
+function proxy:disconnect {
+  docker network disconnect $NETWORK enrise-dev-proxy || true
+}
+
+# Add environment variables for docker compose or sail commands
+export WWWGROUP=${WWWGROUP:-$(id -g)}
+function task:build { ## Build and start the project containers.
+  docker compose build
+}
+
+function task:start { ## Start the project and connects proxy
+  docker compose up -d
+  proxy:start
+  proxy:connect
+
+  echo "Project viewable on http://pokedex.local if you add '127.0.0.1 pokedex.local' to your hostfile"
+}
+
+function task:stop { ## Stop the project containers.
+  proxy:disconnect
+
+  docker compose down
+}
+
+function task:destroy { ## Stop and remove the project containers.
+  proxy:disconnect
+
+  docker compose down -v
+}
+
+
+function task:restart { ## Restart the project containers.
+  docker compose restart
+}
+
+function task:shell { ## Open the application shell.
+  docker compose exec app /bin/sh
+}
+
+function task:exec { ## Run anything in the application shell
+  docker:exec "${@}"
+}
+
+function task:lint {
+  vendor/bin/ecs --config=dev/ecs.php check
+}
+
+function task:lint:fix {
+vendor/bin/ecs --config=dev/ecs.php check --fix $1
+}
+
+function task:index:update { ## recreate all indices
+  docker:exec "php artisan elastic:update"
+}
+
+function task:db:create { ## recreates all database
+  docker:exec "php artisan migrate:fresh"
+}
+
+function task:db:seed {
+    docker:exec "php artisan db:seed"
+}
+
+function task:db:recreate { ## recreates all database
+  task:db:create
+  task:index:update
+  task:db:seed
+}
+
+# ===========================
+# Default: help section
+# ===========================
+
+function task:help { ## This help text
+  echo "Tasks:"
+  cat $0 | awk 'match($0, /^function\s+task:([a-z][a-zA-Z0-9_:-]*)([ ]+\{[ ]*##(.*))*/, a) {printf "  \033[33m%-15s\033[0m  %s\n", a[1], a[3]}'
+}
+
+"task:${@:-help}"

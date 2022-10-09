@@ -1,21 +1,63 @@
-version: '3'
+version: '3.7'
 
 services:
-###> doctrine/doctrine-bundle ###
-  database:
-    image: postgres:${POSTGRES_VERSION:-14}-alpine
+
+  pokedex:
+    build:
+      context: .
+      target: dev
+      args:
+        USERID: ${USERID}
+        GROUPID: ${GROUPID}
+        OSTYPE: ${OSTYPE}
+    depends_on:
+      - mysql
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bakken-shop.rule=Host(`pokedex.local`)"
+      - "traefik.http.routers.bakken-shop.tls=false"
+      - "traefik.http.routers.bakken-shop.entrypoints=web"
+      - "traefik.http.services.bakken-shop.loadbalancer.server.port=80"
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - APP_SECRET="o7%N3pm8Z76s3emHUjMv"
+      - DATABASE_URL=mysql://pokedex:pokedex@mysql/pokedex
+      - ELASTIC_HOST=elasticsearch
+      - MAILER_URL=smtp://mailhog:1025
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PHP_DATE_TIMEZONE=${PHP_DATE_TIMEZONE:-UTC}
+      - PHP_IDE_CONFIG=serverName=pokedex.local
+      - XDEBUG_SESSION=PHPSTORM
     volumes:
-      - db-data:/var/lib/postgresql/data:rw
-      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./docker/db/data:/var/lib/postgresql/data:rw
-###< doctrine/doctrine-bundle ###
+      - .:/www:delegated
+      - ./var/.composer/auth.json:/root/.composer/auth.json:delegated
+  mysql:
+    image: percona:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-pokedex}
+      - MYSQL_DATABASE=pokedex
+      - MYSQL_USER=pokedex
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-pokedex}
+    volumes:
+      - mysql-data:/var/lib/mysql:rw
+    ports:
+      - "3307:3306"
+
+  redis:
+    image: redis:5-alpine
 
 volumes:
-###> doctrine/doctrine-bundle ###
-  db-data:
-###< doctrine/doctrine-bundle ###
+  mysql-data:
+  es-data:
+  public-media:
+
+networks:
+  default:
+    name: pokedex
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.93.0/24
