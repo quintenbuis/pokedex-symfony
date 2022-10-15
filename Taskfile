@@ -1,16 +1,19 @@
 #!/bin/bash
-set -eo pipefail
+
+function banner {
+  echo -e "${RED}"
+  echo " ▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄ ▄▄▄   ▄ ▄▄▄▄▄▄▄ ▄▄▄▄▄▄  ▄▄▄▄▄▄▄ ▄▄   ▄▄ "
+  echo "█       █       █   █ █ █       █      ██       █  █▄█  █"
+  echo "█    ▄  █   ▄   █   █▄█ █    ▄▄▄█  ▄    █    ▄▄▄█       █"
+  echo "█   █▄█ █  █ █  █      ▄█   █▄▄▄█ █ █   █   █▄▄▄█       █"
+  echo "█    ▄▄▄█  █▄█  █     █▄█    ▄▄▄█ █▄█   █    ▄▄▄██     █ "
+  echo "█   █   █       █    ▄  █   █▄▄▄█       █   █▄▄▄█   ▄   █"
+  echo "█▄▄▄█   █▄▄▄▄▄▄▄█▄▄▄█ █▄█▄▄▄▄▄▄▄█▄▄▄▄▄▄██▄▄▄▄▄▄▄█▄▄█ █▄▄█"
+  echo -e "${ENDCOLOR}"
+}
 
 function docker:exec {
   docker compose exec --user php app sh -c "$1"
-}
-
-# ===========================
-# Laravel
-# ===========================
-
-function task:artisan { ## Run any artisan command
-  docker:exec "php artisan ${@}"
 }
 
 # ===========================
@@ -44,8 +47,6 @@ function proxy:disconnect {
   docker network disconnect $NETWORK enrise-dev-proxy || true
 }
 
-# Add environment variables for docker compose or sail commands
-export WWWGROUP=${WWWGROUP:-$(id -g)}
 function task:build { ## Build and start the project containers.
   docker compose build
 }
@@ -83,39 +84,59 @@ function task:exec { ## Run anything in the application shell
   docker:exec "${@}"
 }
 
-function task:lint {
-  vendor/bin/ecs --config=dev/ecs.php check
-}
-
-function task:lint:fix {
-vendor/bin/ecs --config=dev/ecs.php check --fix $1
-}
-
-function task:index:update { ## recreate all indices
-  docker:exec "php artisan elastic:update"
-}
-
-function task:db:create { ## recreates all database
-  docker:exec "php artisan migrate:fresh"
-}
-
-function task:db:seed {
-    docker:exec "php artisan db:seed"
-}
-
-function task:db:recreate { ## recreates all database
-  task:db:create
-  task:index:update
-  task:db:seed
-}
-
 # ===========================
 # Default: help section
 # ===========================
 
-function task:help { ## This help text
-  echo "Tasks:"
-  cat $0 | awk 'match($0, /^function\s+task:([a-z][a-zA-Z0-9_:-]*)([ ]+\{[ ]*##(.*))*/, a) {printf "  \033[33m%-15s\033[0m  %s\n", a[1], a[3]}'
+function task:help { ## Prints this index
+    awk 'BEGIN {FS = " { [#][#][ ]?"} \
+        /^([a-zA-Z_-]*:?.*)(\{ )?[#][#][ ]?/ {printf "\033[33m%-40s\033[0m %s\n", $1, $2}' $0 \
+        | sed -E 's/[#]{2,}[ ]*//g' \
+        | sed -E 's/function task:*//g'
+
+    echo ""
+    echo "Usage:"
+    echo "$0 <task> <args>"
 }
 
+# ═══ Env variables ═════════
+
+# Used for docker-compose
+NETWORK=pokedex
+export USERID=${USERID:-$(id -u)}
+export GROUPID=${GROUPID:-$(id -g)}
+export ON_MACOS=$(uname | grep "Darwin")
+
+# Used for colored output
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+ENDCOLOR="\e[0m"
+
+
+#
+# ═══ Utilities/plumbing ═══
+set -eo pipefail
+
+function fs:exists {
+    if [ ! -f $1 ]; then
+      echo "No such file $1"
+      exit 255
+    fi
+}
+
+function fs:ensure {
+    if [ ! -f $1 ]; then
+        cp $2 $1
+    fi
+}
+
+function dep:exists {
+    if [ ! $(which "$1") ]; then
+      echo "Dependency '$1' is not installed, please make it available"
+      exit 255
+    fi
+}
+
+banner
 "task:${@:-help}"
