@@ -16,12 +16,12 @@ services:
       - "traefik.http.routers.bakken-shop.entrypoints=web"
       - "traefik.http.services.bakken-shop.loadbalancer.server.port=80"
     environment:
-      - APP_ENV=dev
-      - APP_DEBUG=1
-      - APP_SECRET="o7%N3pm8Z76s3emHUjMv"
-      - PHP_DATE_TIMEZONE=${PHP_DATE_TIMEZONE:-UTC}
-      - PHP_IDE_CONFIG=serverName=pokedex.local
-      - XDEBUG_SESSION=PHPSTORM
+      APP_ENV: dev
+      APP_DEBUG: 1
+      APP_SECRET: "o7%N3pm8Z76s3emHUjMv"
+      PHP_DATE_TIMEZONE: ${PHP_DATE_TIMEZONE:-UTC}
+      PHP_IDE_CONFIG: "serverName=pokedex"
+      XDEBUG_SESSION: PHPSTORM
     volumes:
       - .:/www:delegated
 
