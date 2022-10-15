@@ -24,6 +24,8 @@ services:
       XDEBUG_SESSION: PHPSTORM
     volumes:
       - .:/www:delegated
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   default:

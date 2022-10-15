@@ -42,6 +42,11 @@ FROM base AS dev
 
 ARG GROUPID
 
+RUN apk --update --no-cache add \
+    php81-pecl-xdebug
+
+COPY docker/dev-files /
+
 RUN groupmod -o -g ${GROUPID} php \
  && chown -R php:php /www
 
