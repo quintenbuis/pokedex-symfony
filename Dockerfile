@@ -47,7 +47,7 @@ RUN apk --update --no-cache add \
 
 COPY docker/dev-files /
 
-RUN groupmod -o -g ${GROUPID} php \
+RUN groupmod -o -g ${GROUPID:-1000} php \
  && chown -R php:php /www
 
 FROM base AS prod
