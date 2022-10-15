@@ -40,9 +40,9 @@ RUN ln /usr/bin/php81 /usr/bin/php
 
 FROM base AS dev
 
-ARG WWWGROUP
+ARG GROUPID
 
-RUN groupmod -o -g ${WWWGROUP} php \
+RUN groupmod -o -g ${GROUPID} php \
  && chown -R php:php /www
 
 FROM base AS prod
